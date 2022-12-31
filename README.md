@@ -16,7 +16,8 @@
 * Due to twitch's deletion process vods are typically only available up to 60 days old. The script will notify you if its older then 60 days.
 * The script uses UTC timezone as default when recovering vods.
 * If using manual recover please ensure to input the seconds value as 00 when running the script as the script brute forces the seconds value automatically.
-* Currently only TwitchTracker/StreamsCharts is supported for website vod retrieval.
+* TwitchTracker/StreamsCharts/Sullygnome are the sites that are currently supported by the script.
+* **SullyGnome Note:**  vod retrieval for SullyGnome assumes the year is the current year as there is no year indication on the website when looking at a particlular stream.
 
 # Downloading of M3U8 links
 * In order to download an M3U8 choose option 5 in the main menu and input the M3U8 link.
@@ -40,5 +41,6 @@
 
 
 # Latest Release
-[Stable Release 1.0.1.0](https://github.com/ItIckeYd/VodRecovery/releases/tag/1.0.1.0-Full-Release)
+[Stable Release 1.0.4.0](https://github.com/ItIckeYd/VodRecovery/releases/tag/1.0.4.0-Full-Release)
+**- For fully updated code please download code from the **Main** branch** 
 
