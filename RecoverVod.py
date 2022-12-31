@@ -53,10 +53,34 @@ user_agents = ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KH
                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.99 Safari/537.36']
 
 
-def return_main_menu():
-    print("WELCOME TO VOD RECOVERY" + "\n")
+def print_main_menu():
     menu = "1) Recover Vod" + "\n" + "2) Recover Clips" + "\n" + "3) Unmute an M3U8 file" + "\n" + "4) Check M3U8 Segments" + "\n" + "5) Generate M3U8 file (ONLY includes valid segments)" + "\n" + "6) Download M3U8 (.MP4 extension)" + "\n" + "7) Exit" + "\n"
     print(menu)
+
+
+def print_vod_type_menu():
+    vod_type_menu = "Enter what type of vod recovery: " + "\n" + "1) Recover Vod" + "\n" + "2) Recover vods from SullyGnome CSV export" + "\n" + "3) Exit" + "\n"
+    print(vod_type_menu)
+
+
+def print_vod_recovery_menu():
+    vod_recovery_method = "Enter vod recovery method: " + "\n" + "1) Manual Vod Recover" + "\n" + "2) Website Vod Recover" + "\n" + "3) Exit" + "\n"
+    print(vod_recovery_method)
+
+
+def print_clip_type_menu():
+    clip_type_menu = "Enter what type of clip recovery: " + "\n" + "1) Recover all clips from a single VOD" + "\n" + "2) Find random clips from a single VOD" + "\n" + "3) Bulk recover clips from SullyGnome CSV export" + "\n" + "4) Exit" + "\n"
+    print(clip_type_menu)
+
+
+def print_clip_recovery_menu():
+    clip_recovery_method = "Enter clip recovery method: " + "\n" + "1) Manual Clip Recover" + "\n" + "2) Website Clip Recover" + "\n" + "3) Exit" + "\n"
+    print(clip_recovery_method)
+
+
+def print_clip_format_menu():
+    clip_format_menu = "What clip url format would you like to use (delimited by spaces)? " + "\n" + "1) Default ([VodID]-offset-[interval])" + "\n" + "2) Alternate Format (vod-[VodID]-offset-[interval])" + "\n" + "3) Legacy ([VodID]-index-[interval])" + "\n"
+    print(clip_format_menu)
 
 
 def get_default_directory():
@@ -159,6 +183,13 @@ def return_vod_id(url):
     return vod_id
 
 
+def remove_chars_from_ordinal_numbers(datetime_string):
+    ordinal_array = ["th", "nd", "st", "rd"]
+    for exclude_string in ordinal_array:
+        if exclude_string in datetime_string:
+            return datetime_string.replace(datetime_string.split(" ")[1], datetime_string.split(" ")[1][:-len(exclude_string)])
+
+
 def return_file_contents(streamer, vod_id):
     with open(generate_log_filename(streamer, vod_id)) as f:
         content = f.readlines()
@@ -183,6 +214,31 @@ def get_vod_urls(streamer, vod_id, timestamp):
     return valid_vod_url_list
 
 
+def parse_duration_streamscharts(tracker_url):
+    for _ in range(10):
+        response = requests.get(tracker_url, headers=return_header(), allow_redirects=False)
+        if response.status_code == 200:
+            bs = BeautifulSoup(response.content, 'html.parser')
+            streamscharts_duration = bs.find_all('div', {'class': 'text-xs font-bold'})[3].text.strip().replace("h", "").replace("m", "").split(" ")
+            return get_duration(int(streamscharts_duration[0]), int(streamscharts_duration[1]))
+
+
+def parse_duration_twitchtracker(tracker_url):
+    response = requests.get(tracker_url, headers=return_header(), allow_redirects=False)
+    if response.status_code == 200:
+        bs = BeautifulSoup(response.content, 'html.parser')
+        twitchtracker_duration = bs.find_all('div', {'class': 'g-x-s-value'})[0].text
+        return twitchtracker_duration
+
+
+def parse_duration_sullygnome(tracker_url):
+    response = requests.get(tracker_url, headers=return_header(), allow_redirects=False)
+    if response.status_code == 200:
+        bs = BeautifulSoup(response.content, 'html.parser')
+        sullygnome_duration = bs.find_all('div', {'class': 'MiddleSubHeaderItemValue'})[7].text.strip().replace("hours", "").replace("minutes", "").split(",")
+        return get_duration(int(sullygnome_duration[0]), int(sullygnome_duration[1]))
+
+
 def parse_datetime_streamscharts(tracker_url):
     for _ in range(10):
         response = requests.get(tracker_url, headers=return_header(), allow_redirects=False)
@@ -203,16 +259,10 @@ def parse_datetime_sullygnome(tracker_url):
     response = requests.get(tracker_url, headers=return_header(), allow_redirects=False)
     bs = BeautifulSoup(response.content, 'html.parser')
     stream_date = bs.find_all('div', {'class': 'MiddleSubHeaderItemValue'})[6].text
-    if len(stream_date.split(" ")[1]) > 3:
-        day = stream_date.split(" ")[1][:2]
-    else:
-        day = stream_date.split(" ")[1][:1]
-    month = stream_date.split(" ")[2]
-    year = datetime.datetime.today().year
-    timestamp = stream_date.split(" ")[3]
-    stream_datetime = day + " " + month + " " + str(year) + " " + timestamp
-    sullygnome_datetime = datetime.datetime.strftime(datetime.datetime.strptime(stream_datetime, "%d %B %Y %I:%M%p"), "%Y-%m-%d %H:%M:%S")
-    return sullygnome_datetime
+    modified_stream_date = remove_chars_from_ordinal_numbers(stream_date)
+    formatted_stream_date = datetime.datetime.strftime(datetime.datetime.strptime(modified_stream_date, "%A %d %B %I:%M%p"), "%m-%d %H:%M:%S")
+    return str(datetime.datetime.now().year) + "-" + formatted_stream_date
+
 
 def unmute_vod(url):
     file_contents = []
@@ -239,6 +289,7 @@ def unmute_vod(url):
     vod_file.close()
     print(os.path.basename(vod_file_path) + " Has been unmuted!")
 
+
 def dump_playlist(url):
     file_contents = []
     counter = 0
@@ -259,6 +310,7 @@ def dump_playlist(url):
             else:
                 vod_file.write(segment)
     vod_file.close()
+
 
 def return_valid_file(url):
     if is_vod_muted(url):
@@ -410,6 +462,25 @@ def website_vod_recover():
         return
 
 
+def website_clip_recover():
+    tracker_url = input("Enter twitchtracker/streamscharts/sullygnome url:  ")
+    if "streamscharts" in tracker_url:
+        streamer = tracker_url.split("channels/", 1)[1].split("/")[0]
+        vod_id = tracker_url.split("streams/", 1)[1]
+        clip_recover(streamer, vod_id, int(parse_duration_streamscharts(tracker_url)))
+    elif "twitchtracker" in tracker_url:
+        streamer = tracker_url.split("com/", 1)[1].split("/")[0]
+        vod_id = tracker_url.split("streams/", 1)[1]
+        clip_recover(streamer, vod_id, int(parse_duration_twitchtracker(tracker_url)))
+    elif "sullygnome" in tracker_url:
+        streamer = tracker_url.split("channel/", 1)[1].split("/")[0]
+        vod_id = tracker_url.split("stream/", 1)[1]
+        clip_recover(streamer, vod_id, int(parse_duration_sullygnome(tracker_url)))
+    else:
+        print("Link not supported.. Returning to main menu.")
+        return
+
+
 def bulk_vod_recovery():
     streamer = input("Enter streamer name: ")
     file_path = input("Enter full path of sullygnome CSV file: ").replace('"', '')
@@ -426,15 +497,12 @@ def bulk_vod_recovery():
             print("No vods found using current domain list." + "\n")
 
 
-def recover_all_clips():
+def clip_recover(streamer, vod_id, duration):
     total_counter, iteration_counter, valid_counter = 0, 0, 0
     valid_url_list = []
-    streamer = input("Enter streamer name: ")
-    vod_id = input("Enter vod id: ")
-    hours = input("Enter stream duration hour value: ")
-    minutes = input("Enter stream duration minute value: ")
-    clip_format = input("What clip url format would you like to use (delimited by spaces)? " + "\n" + "1) Default ([VodID]-offset-[interval])" + "\n" + "2) Alternate Format (vod-[VodID]-offset-[interval])" + "\n" + "3) Legacy ([VodID]-index-[interval])" + "\n").split()
-    full_url_list = get_all_clip_urls(get_clip_format(vod_id, get_reps(get_duration(hours, minutes))), clip_format)
+    print_clip_format_menu()
+    clip_format = input("Please choose an option: ").split(" ")
+    full_url_list = get_all_clip_urls(get_clip_format(vod_id, get_reps(duration)), clip_format)
     request_session = requests.Session()
     rs = [grequests.head(u, session=request_session) for u in full_url_list]
     for result in grequests.imap(rs, size=100):
@@ -467,6 +535,14 @@ def recover_all_clips():
         return
 
 
+def manual_clip_recover():
+    streamer = input("Enter streamer name: ")
+    vod_id = input("Enter vod id: ")
+    hours = input("Enter stream duration hour value: ")
+    minutes = input("Enter stream duration minute value: ")
+    clip_recover(streamer, vod_id, get_duration(hours, minutes))
+
+
 def parse_clip_csv_file(file_path):
     vod_info_dict = {}
     csv_file = open(file_path, "r+")
@@ -491,18 +567,9 @@ def parse_vod_csv_file(file_path):
     lines = csv_file.readlines()[1:]
     for line in lines:
         if line.strip():
-            if len(line.split(",")[1].split(" ")[1]) > 3:
-                day = line.split(",")[1].split(" ")[1][:2]
-            else:
-                day = line.split(",")[1].split(" ")[1][:1]
-            month = line.split(",")[1].split(" ")[2]
-            year = line.split(",")[1].split(" ")[3]
-            timestamp = line.split(",")[1].split(" ")[4]
-            stream_datetime = day + " " + month + " " + year + " " + timestamp
+            modified_stream_date = remove_chars_from_ordinal_numbers(line.split(",")[1].replace('"', ""))
+            stream_date = datetime.datetime.strftime(datetime.datetime.strptime(modified_stream_date, "%A %d %B %Y %H:%M"), "%Y-%m-%d %H:%M:%S")
             vod_id = line.partition("stream/")[2].split(",")[0].replace('"', "")
-            stream_date = datetime.datetime.strftime(
-                datetime.datetime.strptime(stream_datetime.strip().replace('"', "") + ":00", "%d %B %Y %H:%M:%S"),
-                "%Y-%m-%d %H:%M:%S")
             vod_info_dict.update({stream_date: vod_id})
     csv_file.close()
     return vod_info_dict
@@ -513,7 +580,8 @@ def get_random_clips():
     vod_id = input("Enter vod id: ")
     hours = input("Enter stream duration hour value: ")
     minutes = input("Enter stream duration minute value: ")
-    clip_format = input("What clip url format would you like to use (delimited by spaces)? " + "\n" + "1) Default ([VodID]-offset-[interval])" + "\n" + "2) Alternate Format (vod-[VodID]-offset-[interval])" + "\n" + "3) Legacy ([VodID]-index-[interval])" + "\n").split()
+    print_clip_format_menu()
+    clip_format = input("Please choose an option: ").split(" ")
     full_url_list = get_all_clip_urls(get_clip_format(vod_id, get_reps(get_duration(hours, minutes))), clip_format)
     random.shuffle(full_url_list)
     print("Total Number of Urls: " + str(len(full_url_list)))
@@ -537,7 +605,8 @@ def bulk_clip_recovery():
     streamer = input("Enter streamer name: ")
     file_path = input("Enter full path of sullygnome CSV file: ").replace('"', '')
     user_option = input("Do you want to download all clips recovered (Y/N)? ")
-    clip_format = input("What clip url format would you like to use (delimited by spaces)? " + "\n" + "1) Default ([VodID]-offset-[interval])" + "\n" + "2) Alternate Format (vod-[VodID]-offset-[interval])" + "\n" + "3) Legacy ([VodID]-index-[interval])" + "\n").split()
+    print_clip_format_menu()
+    clip_format = input("Please choose an option: ").split(" ")
     for vod_id, duration in parse_clip_csv_file(file_path).items():
         vod_counter += 1
         print("Processing Twitch Vod... " + str(vod_id) + " - " + str(vod_counter) + " of " + str(
@@ -569,15 +638,7 @@ def bulk_clip_recovery():
 
 
 def download_m3u8(url):
-    videos = []
-    ts_video_list = natsorted(get_valid_segments(get_all_playlist_segments(url)))
-    for ts_files in ts_video_list:
-        print("Processing.... " + ts_files)
-        if ts_files.endswith(".ts"):
-            video = VideoFileClip(ts_files)
-            videos.append(video)
-    final_vod_output = concatenate_videoclips(videos)
-    final_vod_output.to_videofile(os.path.join(get_default_directory(), "VodRecovery_" + return_username(url) + "_" + return_vod_id(url) + ".mp4"), fps=60, remove_temp=True)
+    os.system("ffmpeg.exe -i \"{}\" -c copy -bsf:a aac_adtstoasc \"{}.mp4\"".format(url, generate_vod_filename(return_username(url), return_vod_id(url)).removesuffix(".m3u8")))
 
 
 def download_clips(directory, streamer, vod_id):
@@ -611,36 +672,53 @@ def download_clips(directory, streamer, vod_id):
 
 
 def run_script():
+    print("WELCOME TO VOD RECOVERY" + "\n")
     menu = 0
     while menu < 7:
-        return_main_menu()
+        print_main_menu()
         menu = int(input("Please choose an option: "))
         if menu == 7:
             exit()
         elif menu == 1:
-            vod_type = int(input(
-                "Enter what type of vod recovery: " + "\n" + "1) Recover Vod" + "\n" + "2) Recover vods from SullyGnome CSV export" + "\n"))
+            print_vod_type_menu()
+            vod_type = int(input("Please choose an option: "))
             if vod_type == 1:
-                recovery_method = int(input("Enter vod recovery method: " + "\n" + "1) Manual Recover" + "\n" + "2) Website Recover" + "\n"))
-                if recovery_method == 1:
+                print_vod_recovery_menu()
+                vod_recovery_method = int(input("Please choose an option: "))
+                if vod_recovery_method == 1:
                     manual_vod_recover()
-                elif recovery_method == 2:
+                elif vod_recovery_method == 2:
                     website_vod_recover()
+                elif vod_recovery_method == 3:
+                    exit()
                 else:
                     print("Invalid option returning to main menu.")
             elif vod_type == 2:
                 bulk_vod_recovery()
+            elif vod_type == 3:
+                exit()
             else:
                 print("Invalid option! Returning to main menu.")
         elif menu == 2:
-            clip_type = int(input(
-                "Enter what type of clip recovery: " + "\n" + "1) Recover all clips from a single VOD" + "\n" + "2) Find random clips from a single VOD" + "\n" + "3) Bulk recover clips from SullyGnome CSV export" + "\n"))
+            print_clip_type_menu()
+            clip_type = int(input("Please choose an option: "))
             if clip_type == 1:
-                recover_all_clips()
+                print_clip_recovery_menu()
+                clip_recovery_method = int(input("Please choose an option: "))
+                if clip_recovery_method == 1:
+                    manual_clip_recover()
+                elif clip_recovery_method == 2:
+                    website_clip_recover()
+                elif clip_recovery_method == 3:
+                    exit()
+                else:
+                    print("Invalid option returning to main menu.")
             elif clip_type == 2:
                 get_random_clips()
             elif clip_type == 3:
                 bulk_clip_recovery()
+            elif clip_type == 4:
+                exit()
             else:
                 print("Invalid option! Returning to main menu.")
         elif menu == 3:
